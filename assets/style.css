@@ -1,0 +1,181 @@
+/* ============================================================
+   learn-durable-objects — shared stylesheet
+   Tufte-inspired: generous margins, readable type, no clutter
+   ============================================================ */
+
+:root {
+  --text:        #1a1a1a;
+  --muted:       #555;
+  --border:      #ddd;
+  --bg:          #fffef9;
+  --code-bg:     #f5f4ef;
+  --accent:      #f6821f;   /* Cloudflare orange */
+  --accent-dark: #c96a10;
+  --success:     #2d6a2d;
+  --success-bg:  #edf7ed;
+  --error:       #8b0000;
+  --error-bg:    #fdf0f0;
+  --max-width:   680px;
+  --font-serif:  Georgia, 'Times New Roman', serif;
+  --font-mono:   'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  font-size: 18px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: var(--font-serif);
+  line-height: 1.65;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 3rem 1.5rem 6rem;
+}
+
+/* ── Typography ── */
+
+h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 2.5rem 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+p { margin: 0 0 1rem; }
+
+a { color: var(--accent-dark); }
+a:hover { color: var(--accent); }
+
+strong { font-weight: 700; }
+em { font-style: italic; }
+
+/* ── Code ── */
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  background: var(--code-bg);
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+}
+
+pre {
+  background: var(--code-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  margin: 1.25rem 0;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* ── Lesson header ── */
+
+.lesson-meta {
+  font-family: sans-serif;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+
+.lesson-meta a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.lesson-meta a:hover { color: var(--accent); }
+
+/* ── Callout / aside ── */
+
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--code-bg);
+  padding: 0.75rem 1rem;
+  margin: 1.5rem 0;
+  font-size: 0.92rem;
+}
+
+.callout p:last-child { margin-bottom: 0; }
+
+/* ── Primary source citation ── */
+
+.primary-source {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin: 2rem 0;
+  font-size: 0.88rem;
+  font-family: sans-serif;
+}
+
+.primary-source .label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+/* ── Ask your teacher prompt ── */
+
+.ask-teacher {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-family: sans-serif;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* ── Navigation between lessons ── */
+
+.lesson-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-family: sans-serif;
+  font-size: 0.85rem;
+}
+
+.lesson-nav a { text-decoration: none; color: var(--accent-dark); }
+.lesson-nav a:hover { color: var(--accent); }
+
+/* ── Podcast player ── */
+
+.podcast {
+  margin: 2rem 0;
+  padding: 1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-family: sans-serif;
+  font-size: 0.85rem;
+}
+
+.podcast p { margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--muted); }
+
+audio { width: 100%; display: block; }
