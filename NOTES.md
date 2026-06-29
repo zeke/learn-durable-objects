@@ -9,6 +9,14 @@
 - Comfortable with TypeScript and Workers syntax — use that for code examples
 - Dislikes cognitive surrender: every abstraction should be explained, not just used
 
+## Interview answers (2026-06-29)
+
+- Primary goal: **teach and demystify** — not advocate or build (those are secondary validation)
+- Core gap: **what the runtime actually does** — input gates, output gates, hibernation, the single-threaded guarantee as a mechanism
+- Actor model: heard of it, never used it — don't use it as primary scaffolding; mention it briefly but don't build lessons around it
+- Vendor lock-in: a **separate concern** from understanding the mechanics — address it explicitly after the fundamentals, not as part of them
+- Success signal: explain it (to Aly, without notes) + build it + argue it
+
 ## Context from transcript (2026-06-17)
 
 - Skip-level Aly Cabral challenged Zeke to "lean into the discomfort"
