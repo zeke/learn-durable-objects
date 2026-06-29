@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 1: The Coordination Problem — Learn Durable Objects</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+  <p class="lesson-meta">
+    <a href="../PLAN.md">Learn Durable Objects</a> &rsaquo; Lesson 1 of 4
+  </p>
+
+  <h1>The coordination problem</h1>
+  <p style="font-family:sans-serif; font-size:0.88rem; color:#555; margin-top:0.25rem;">
+    15 minutes &nbsp;&middot;&nbsp; No code required &nbsp;&middot;&nbsp; Mental model only
+  </p>
+
+  <p>
+    Before you can understand what a Durable Object <em>is</em>, you need to feel the problem it
+    solves. This lesson is about that problem. We&rsquo;ll call it the <strong>coordination
+    problem</strong>.
+  </p>
+
+  <h2>Workers are stateless by design</h2>
+
+  <p>
+    A Cloudflare Worker is stateless. Every request spins up an isolated execution context, runs
+    your code, and exits. There is no memory between requests. This is the right default: it means
+    Workers fan out horizontally across Cloudflare&rsquo;s global network with no coordination
+    overhead. Thousands of concurrent requests, each handled independently.
+  </p>
+
+  <p>
+    That statelessness is a feature until you need two requests to agree on something.
+  </p>
+
+  <h2>The moment statelessness breaks down</h2>
+
+  <p>
+    Imagine a collaborative document editor. Two users open the same document. User A appends
+    &ldquo;Hello&rdquo;. User B appends &ldquo;World&rdquo;. Each request hits a Worker. Each
+    Worker reads the current document from a database, appends the new text, and writes it back.
+  </p>
+
+  <p>
+    Here&rsquo;s what can happen:
+  </p>
+
+  <ol style="margin:0 0 1rem 1.5rem; padding:0;">
+    <li>Worker A reads: <code>"..."</code></li>
+    <li>Worker B reads: <code>"..."</code> &nbsp;(same value, A hasn&rsquo;t written yet)</li>
+    <li>Worker A writes: <code>"...Hello"</code></li>
+    <li>Worker B writes: <code>"...World"</code> &nbsp;(clobbers A&rsquo;s write)</li>
+  </ol>
+
+  <p>
+    The final document contains only &ldquo;World&rdquo;. Hello is gone.
+  </p>
+
+  <p>
+    This is a <strong>read-modify-write race condition</strong>. It happens because two Workers
+    read the same value before either one writes. Neither Worker knows the other exists.
+  </p>
+
+  <div class="callout">
+    <p>
+      This class of bug is especially cruel: it only surfaces under load, and it&rsquo;s
+      non-deterministic. Everything looks fine in development. It only breaks when real users hit
+      the same resource at the same time.
+    </p>
+  </div>
+
+  <h2>The standard fix: transactions</h2>
+
+  <p>
+    The traditional answer is database transactions. Wrap the read-modify-write in a transaction.
+    The database serializes concurrent operations. Whoever commits first wins; the loser retries.
+  </p>
+
+  <p>
+    This works, but it has costs:
+  </p>
+
+  <ul style="margin:0 0 1rem 1.5rem; padding:0;">
+    <li>Every write requires a round trip to the database, including network latency.</li>
+    <li>Under contention, retries multiply. The more concurrent writers, the slower everything gets.</li>
+    <li>For real-time applications (chat, multiplayer, live cursors), the latency floor matters.
+        Even 20ms feels wrong when you&rsquo;re watching someone else&rsquo;s cursor.</li>
+  </ul>
+
+  <p>
+    Transactions solve correctness. They don&rsquo;t solve speed.
+  </p>
+
+  <h2>The harder problem: real-time coordination</h2>
+
+  <p>
+    Now make it harder. Not just two writes to the same document &mdash; two users in the same
+    chat room. Each connected via a WebSocket. When User A sends a message, Worker A needs to
+    broadcast it to User B&rsquo;s Worker.
+  </p>
+
+  <p>
+    But Worker B&rsquo;s connection lives in a different isolate, on a different machine. There&rsquo;s
+    no shared memory. There&rsquo;s no message bus built into Workers. You could publish to a queue
+    and have each Worker poll it, but now you&rsquo;ve introduced another system, latency, and
+    complexity.
+  </p>
+
+  <p>
+    What you actually want is: <strong>one place where all clients for this room meet</strong>.
+    A single address. Any Worker anywhere in the world that knows the room name can reach it.
+    That address has memory. That address can broadcast to all connected clients.
+  </p>
+
+  <p>
+    That address is a Durable Object.
+  </p>
+
+  <h2>The key insight</h2>
+
+  <p>
+    A Durable Object is the inverse of a stateless Worker. Instead of many independent Workers
+    handling each request, a Durable Object is <strong>one instance, handling all requests for a
+    given identity</strong>.
+  </p>
+
+  <p>
+    Two properties make this work:
+  </p>
+
+  <ol style="margin:0 0 1rem 1.5rem; padding:0;">
+    <li>
+      <strong>Global uniqueness.</strong> A DO identified as <code>"room-42"</code> exists exactly
+      once in the world. Every Worker that asks for <code>"room-42"</code> gets routed to the same
+      instance, regardless of where in the world the Workers are running.
+    </li>
+    <li>
+      <strong>Single-threaded execution.</strong> Within that instance, code runs one thing at a
+      time. No two requests can interleave their execution. The race condition above is structurally
+      impossible inside a DO.
+    </li>
+  </ol>
+
+  <div class="callout">
+    <p>
+      <strong>The magic explained.</strong> When a DO &ldquo;just handles concurrency for you&rdquo;,
+      this is what&rsquo;s happening: the runtime routes all requests for a given ID to the same
+      single-threaded instance. There is no locking algorithm, no retry logic, no transactions
+      (for in-memory state). There is just one thread. Concurrency is serialized by the runtime
+      before it reaches your code.
+    </p>
+  </div>
+
+  <h2>Why this doesn&rsquo;t feel like magic once you know it</h2>
+
+  <p>
+    Your existing mental model was mostly right. You said: &ldquo;a bunch of WebSocket-powered,
+    database-backed individualized threads attached to individual users or sessions.&rdquo;
+  </p>
+
+  <p>
+    The amendment: it&rsquo;s not a thread per <em>user</em>. It&rsquo;s a thread per
+    <em>coordination unit</em>. A room. A document. A game session. An order. Whatever the thing
+    is that multiple clients need to agree on. One DO per thing-being-coordinated.
+  </p>
+
+  <p>
+    The &ldquo;cognitive surrender&rdquo; feeling comes from using DOs without understanding why
+    one instance handles everything. Now you know why: it&rsquo;s the only structural way to
+    eliminate the race condition without a database transaction on every operation.
+  </p>
+
+  <hr style="margin: 2.5rem 0; border:none; border-top: 1px solid #ddd;">
+
+  <h2>Quiz</h2>
+  <p style="font-family:sans-serif; font-size:0.85rem; color:#555;">
+    Select the best answer. No partial credit &mdash; commit to one.
+  </p>
+
+  <div class="quiz" data-quiz="q1" style="margin-bottom:2rem;">
+    <p class="quiz-question" style="font-family:sans-serif; font-size:0.95rem;">
+      Two Workers read the same counter value from a database, each increment it, and each write
+      it back. What is this bug called?
+    </p>
+    <ul class="quiz-options">
+      <li data-correct="true">A read-modify-write race condition</li>
+      <li>A network partition fault event</li>
+      <li>A distributed transaction rollback</li>
+      <li>A cache invalidation thundering herd</li>
+    </ul>
+    <p class="quiz-feedback"
+       data-correct="Correct. Two independent reads before either write means the second write silently clobbers the first."
+       data-incorrect="Not quite. The correct answer is highlighted. Two readers, two writers, no coordination — that&rsquo;s a read-modify-write race."
+       hidden></p>
+  </div>
+
+  <div class="quiz" data-quiz="q2" style="margin-bottom:2rem;">
+    <p class="quiz-question" style="font-family:sans-serif; font-size:0.95rem;">
+      What is the core structural property that makes a Durable Object correct for coordination
+      without database transactions?
+    </p>
+    <ul class="quiz-options">
+      <li data-correct="true">One globally unique instance, running single-threaded</li>
+      <li>Automatic retry logic built into the Workers runtime</li>
+      <li>Optimistic locking using compare-and-swap operations</li>
+      <li>Eventual consistency across replicated storage nodes</li>
+    </ul>
+    <p class="quiz-feedback"
+       data-correct="Correct. Global uniqueness means all requests for a given ID arrive at the same instance. Single-threaded execution means they are serialized without locks."
+       data-incorrect="Not quite. DOs don&rsquo;t use retry logic, CAS, or eventual consistency for in-memory coordination. One thread, one instance — that&rsquo;s it."
+       hidden></p>
+  </div>
+
+  <div class="quiz" data-quiz="q3" style="margin-bottom:2rem;">
+    <p class="quiz-question" style="font-family:sans-serif; font-size:0.95rem;">
+      A chat app has 10,000 rooms. Each room has up to 50 active users. What is the right DO
+      topology?
+    </p>
+    <ul class="quiz-options">
+      <li data-correct="true">One DO per room, all 50 users routed to it</li>
+      <li>One DO per user, message fan-out via queue</li>
+      <li>One global DO for all rooms, partitioned by key</li>
+      <li>One DO per data center, replicated via consensus</li>
+    </ul>
+    <p class="quiz-feedback"
+       data-correct="Correct. The coordination unit is the room, not the user. One DO per room, all clients in that room route to it. 10,000 rooms = 10,000 DOs, each small and independent."
+       data-incorrect="Not quite. The coordination unit is what multiple clients share — the room. Each room needs its own DO so its users can coordinate without touching other rooms."
+       hidden></p>
+  </div>
+
+  <div class="primary-source">
+    <span class="label">Primary source for this lesson</span>
+    <a href="https://blog.cloudflare.com/durable-objects-easy-fast-correct-choose-three/" target="_blank">
+      Durable Objects: Easy, Fast, Correct &mdash; Choose three
+    </a>
+    &mdash; Kenton Varda, Cloudflare Blog (2021). The original design rationale post. Sections
+    &ldquo;Background: Durable Objects are Single-Threaded&rdquo; and &ldquo;An Example&rdquo;
+    directly correspond to this lesson.
+  </div>
+
+  <div class="lesson-nav">
+    <span></span>
+    <a href="0002-anatomy-of-a-durable-object.html">Lesson 2: Anatomy of a Durable Object &rarr;</a>
+  </div>
+
+  <div class="ask-teacher">
+    <strong>Questions?</strong> Ask your teacher. Type anything that&rsquo;s unclear, and the
+    agent will answer before moving to the next lesson.
+    Examples: &ldquo;Why can&rsquo;t Workers just use a distributed lock?&rdquo;
+    &ldquo;What happens if two Workers request the same DO at the same millisecond?&rdquo;
+    &ldquo;Is a DO per user ever the right answer?&rdquo;
+  </div>
+
+  <script src="../assets/quiz.js"></script>
+</body>
+</html>
