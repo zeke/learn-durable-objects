@@ -17,6 +17,10 @@
   individualized threads that can be attached to individual users or sessions, each with an LLM"
   — partially correct, worth building on rather than discarding
 
+## Lesson conventions
+
+- Audio player goes at the top of every lesson, immediately after the title/meta block, before the first paragraph. Use the `.podcast` div from style.css. The `src` attribute should point to the sibling `NNNN-podcast.mp3` file.
+
 ## Teaching notes
 
 - Start from the problem, not the solution. Zeke said the thing that makes DOs feel like magic

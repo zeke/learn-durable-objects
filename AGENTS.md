@@ -18,8 +18,8 @@ Each lesson is a self-contained HTML file in `lessons/`. Each has a companion po
 
 - Each lesson is `lessons/NNNN-slug.html`, numbered sequentially.
 - Each lesson links `../assets/style.css` and `../assets/quiz.js`.
-- Each lesson must include: concept explanation, at least one quiz, a primary source link,
-  and a prompt to ask the agent followup questions.
+- Each lesson must include: an audio player at the top (`.podcast` div, `src="NNNN-podcast.mp3"`),
+  concept explanation, at least one quiz, a primary source link, and a prompt to ask the agent followup questions.
 - Lessons are Tufte-style: clean typography, tight scope, completable in ~15 minutes.
 - Each lesson has a companion podcast at `lessons/NNNN-podcast.mp3` generated via NotebookLM.
 
