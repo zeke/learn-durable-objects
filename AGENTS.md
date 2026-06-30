@@ -14,10 +14,18 @@ Each lesson is a self-contained HTML file in `lessons/`. Each has a companion po
 - Always fetch primary sources (Cloudflare DO docs) before writing lesson content. Never rely on
   parametric knowledge for technical claims.
 
+## Homepage
+
+- `index.html` at the repo root is the course homepage. It lists every lesson by number and title.
+- When a new lesson is written, update `index.html`: change its status from "Coming soon" to "Ready".
+- Lesson titles in `index.html` must match the `<h1>` in the lesson file exactly.
+
 ## Lesson conventions
 
 - Each lesson is `lessons/NNNN-slug.html`, numbered sequentially.
 - Each lesson links `../assets/style.css` and `../assets/quiz.js`.
+- The breadcrumb at the top of each lesson links `../index.html` (not PLAN.md or any other file).
+- The `<h1>` lesson title must match what's listed in `index.html`.
 - Each lesson must include: an audio player at the top (`.podcast` div, `src="NNNN-podcast.mp3"`),
   concept explanation, at least one quiz, a primary source link, and a prompt to ask the agent followup questions.
 - Lessons are Tufte-style: clean typography, tight scope, completable in ~15 minutes.

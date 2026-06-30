@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Learn Durable Objects</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    .lesson-list {
+      list-style: none;
+      padding: 0;
+      margin: 2rem 0 0;
+    }
+
+    .lesson-list li {
+      border-top: 1px solid var(--border);
+    }
+
+    .lesson-list li:last-child {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .lesson-list a {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      padding: 0.9rem 0;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .lesson-list a:hover {
+      color: var(--accent);
+    }
+
+    .lesson-list a:hover .lesson-num {
+      color: var(--accent);
+    }
+
+    .lesson-num {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      flex-shrink: 0;
+      width: 4rem;
+    }
+
+    .lesson-title {
+      font-family: var(--font-serif);
+      font-size: 1rem;
+      flex: 1;
+    }
+
+    .lesson-status {
+      font-family: sans-serif;
+      font-size: 0.75rem;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .lesson-status.ready {
+      color: var(--success);
+    }
+
+    .intro {
+      margin-top: 1.5rem;
+      color: var(--muted);
+      font-family: sans-serif;
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <p class="lesson-meta">Learn Durable Objects</p>
+
+  <h1>Learn Durable Objects</h1>
+
+  <p class="intro">
+    A self-paced course for engineers who want to understand the Durable Objects primitive —
+    not just use it. Each lesson is ~15 minutes. Each has a companion podcast.
+  </p>
+
+  <ul class="lesson-list">
+    <li>
+      <a href="lessons/0001-the-coordination-problem.html">
+        <span class="lesson-num">Lesson 1</span>
+        <span class="lesson-title">The coordination problem</span>
+        <span class="lesson-status ready">Ready</span>
+      </a>
+    </li>
+    <li>
+      <a href="lessons/0002-anatomy-of-a-durable-object.html">
+        <span class="lesson-num">Lesson 2</span>
+        <span class="lesson-title">Anatomy of a Durable Object</span>
+        <span class="lesson-status">Coming soon</span>
+      </a>
+    </li>
+    <li>
+      <a href="lessons/0003-build-a-counter-do.html">
+        <span class="lesson-num">Lesson 3</span>
+        <span class="lesson-title">Build a counter DO</span>
+        <span class="lesson-status">Coming soon</span>
+      </a>
+    </li>
+    <li>
+      <a href="lessons/0004-add-websockets.html">
+        <span class="lesson-num">Lesson 4</span>
+        <span class="lesson-title">Add WebSockets</span>
+        <span class="lesson-status">Coming soon</span>
+      </a>
+    </li>
+  </ul>
+
+</body>
+</html>
