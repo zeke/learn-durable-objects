@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 2: Anatomy of a Durable Object — Learn Durable Objects</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    /* State machine diagram */
+    .states {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 1.5rem 0;
+      font-family: sans-serif;
+      font-size: 0.82rem;
+    }
+
+    .state-row {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+    }
+
+    .state-box {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.55rem 0.85rem;
+      flex: 1;
+      line-height: 1.3;
+    }
+
+    .state-box.active {
+      background: var(--success-bg);
+      border-color: #2d6a2d;
+    }
+
+    .state-box.billed {
+      background: #fff8ed;
+      border-color: #c96a10;
+    }
+
+    .state-box.free {
+      background: var(--code-bg);
+    }
+
+    .state-box strong {
+      display: block;
+      margin-bottom: 0.15rem;
+    }
+
+    .state-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.2rem 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+      gap: 0.4rem;
+    }
+
+    .arrow-label {
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-style: italic;
+    }
+
+    /* Two-column anatomy table */
+    .anatomy {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: sans-serif;
+      font-size: 0.85rem;
+      margin: 1rem 0 1.5rem;
+    }
+
+    .anatomy th {
+      text-align: left;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      padding: 0.4rem 0.5rem;
+    }
+
+    .anatomy td {
+      padding: 0.55rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      line-height: 1.45;
+    }
+
+    .anatomy td:first-child {
+      font-weight: 700;
+      white-space: nowrap;
+      width: 38%;
+    }
+  </style>
+</head>
+<body>
+
+  <p class="lesson-meta">
+    <a href="../index.html">Learn Durable Objects</a> &rsaquo; Lesson 2 of 4
+  </p>
+
+  <h1>Anatomy of a Durable Object</h1>
+  <p style="font-family:sans-serif; font-size:0.88rem; color:#555; margin-top:0.25rem;">
+    15 minutes &nbsp;&middot;&nbsp; No hands-on code &nbsp;&middot;&nbsp; Runtime mechanics
+  </p>
+
+  <div class="podcast">
+    <p>Listen while you read &mdash; AI-generated podcast for this lesson</p>
+    <audio controls src="0002-podcast.mp3"></audio>
+  </div>
+
+  <p>
+    Lesson 1 established <em>why</em> a DO exists. This lesson is about <em>what the runtime
+    actually does</em> on your behalf. The goal: after this lesson you could explain the mechanics
+    to someone else without notes.
+  </p>
+
+  <p>
+    A Durable Object has five runtime properties that work together. None of them are magic once
+    you can name them.
+  </p>
+
+  <table class="anatomy">
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>What the runtime does</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Global uniqueness</td>
+        <td>Routes all requests for a given ID to exactly one instance, anywhere in the world</td>
+      </tr>
+      <tr>
+        <td>Single-threaded execution</td>
+        <td>Serializes request handling inside that instance — no two handlers run concurrently</td>
+      </tr>
+      <tr>
+        <td>Co-located storage</td>
+        <td>Gives each instance a private SQLite database on the same machine as the instance</td>
+      </tr>
+      <tr>
+        <td>Input &amp; output gates</td>
+        <td>Prevents new events from arriving and new responses from leaving while storage writes are in flight</td>
+      </tr>
+      <tr>
+        <td>Hibernation</td>
+        <td>Evicts idle instances from memory while keeping WebSocket connections alive</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>Each one earns its place. Let&rsquo;s go through them.</p>
+
+  <h2>1. Global uniqueness</h2>
+
+  <p>
+    When a Worker asks for a DO by name &mdash; say <code>env.ROOMS.get(id)</code> &mdash; the
+    runtime resolves that name to a specific Cloudflare data center and routes the request there.
+    The same name always resolves to the same location. Any Worker, in any data center in the
+    world, asking for the same name gets routed to the same single instance.
+  </p>
+
+  <p>
+    The routing is deterministic and handled entirely by the runtime. Your code never decides
+    where an instance lives &mdash; you just use the name. The runtime handles the rest.
+  </p>
+
+  <div class="callout">
+    <p>
+      <strong>IDs vs. names.</strong> You can address a DO by a random ID
+      (<code>env.ROOMS.newUniqueId()</code>) or by a name you choose
+      (<code>env.ROOMS.idFromName("room-42")</code>). Both resolve to a globally unique instance.
+      Name-based IDs are deterministic: the same name always produces the same ID, which always
+      routes to the same instance.
+    </p>
+  </div>
+
+  <h2>2. Single-threaded execution</h2>
+
+  <p>
+    Inside a DO instance, JavaScript runs single-threaded &mdash; the same as in a browser. Only
+    one thing runs at a time. But JavaScript is async, which means a handler can <code>await</code>
+    something and yield, allowing another handler to start running.
+  </p>
+
+  <p>
+    This is where the race condition from Lesson 1 would re-enter. Two concurrent handlers could
+    both read a value, both modify it, both write &mdash; and you&rsquo;re back to the same
+    problem.
+  </p>
+
+  <p>
+    The runtime prevents this with <strong>input gates</strong>.
+  </p>
+
+  <h2>3. Input &amp; output gates</h2>
+
+  <p>
+    These are the runtime mechanism that makes single-threaded async code actually correct.
+    Kenton Varda coined the terms in the
+    <a href="https://blog.cloudflare.com/durable-objects-easy-fast-correct-choose-three/" target="_blank">2021 design post</a>.
+  </p>
+
+  <p><strong>Input gate:</strong> While a storage operation is in flight (during an
+  <code>await</code>), the runtime holds back any new incoming events &mdash; requests, responses
+  to outbound fetches, anything. The gate opens only when the storage operation completes and
+  the current JavaScript turn finishes. This means your read-modify-write sequence cannot be
+  interrupted by another request sneaking in between the read and the write.
+  </p>
+
+  <p><strong>Output gate:</strong> While a storage write is in flight, the runtime holds back any
+  outgoing network messages &mdash; responses to the client, outbound <code>fetch()</code> calls.
+  If the write fails, the held-back messages are dropped and the DO restarts. This means you can
+  fire a <code>storage.put()</code> without <code>await</code>ing it and still be safe: the
+  runtime will not let a &ldquo;success&rdquo; response reach the client before the write lands on
+  disk.
+  </p>
+
+  <div class="callout">
+    <p>
+      <strong>Why this matters for teaching.</strong> When someone says a DO
+      &ldquo;automatically handles concurrency&rdquo;, this is the specific mechanism they mean.
+      It is not magic. It is two runtime-enforced gates that prevent events from entering or
+      responses from leaving during a storage operation. You can now name the mechanism.
+    </p>
+  </div>
+
+  <p>
+    There is one important caveat. If <em>you</em> deliberately start two async operations from the
+    same synchronous turn &mdash;
+  </p>
+
+  <pre><code>// Both calls start before either awaits — gates won't help here
+const p1 = this.getUniqueNumber();
+const p2 = this.getUniqueNumber();
+await Promise.all([p1, p2]);</code></pre>
+
+  <p>
+    &mdash; the gates cannot protect you, because there is no incoming event to block. You
+    initiated both calls yourself in the same turn. This is a deterministic bug and easy to
+    catch in testing, which is why the runtime treats it as the developer&rsquo;s responsibility.
+  </p>
+
+  <h2>4. Co-located storage</h2>
+
+  <p>
+    Each DO instance has a private SQLite database that lives on the same machine as the instance.
+    Reads and writes do not leave the machine. This is why storage feels fast compared to a
+    traditional database: there is no network hop.
+  </p>
+
+  <p>
+    The storage is private to one instance. No other DO can read it. No Worker can access it
+    directly. The only way in is through the DO&rsquo;s own methods.
+  </p>
+
+  <p>
+    Writes are also cached in memory automatically. A <code>storage.put()</code> writes to the
+    in-memory cache immediately and returns. The cache is flushed to disk asynchronously. The
+    output gate ensures the client never sees a confirmation before the flush succeeds. So from
+    your code&rsquo;s perspective, writes are instant; from the client&rsquo;s perspective, they
+    are durable before any response arrives.
+  </p>
+
+  <h2>5. Lifecycle and hibernation</h2>
+
+  <p>
+    A DO instance starts cold &mdash; the constructor runs on the first request. It stays alive in
+    memory as long as requests keep arriving. When it goes idle, one of two things happens
+    depending on whether it has open WebSocket connections:
+  </p>
+
+  <div class="states">
+    <div class="state-box active">
+      <strong>Active, in-memory</strong>
+      Handling a request or event. Billed.
+    </div>
+    <div class="state-arrow">↓ <span class="arrow-label">requests finish</span></div>
+    <div class="state-box billed">
+      <strong>Idle, in-memory (non-hibernateable)</strong>
+      Has open WebSockets (Standard API), pending timers, or outbound connections. Billed.
+      Evicted after 70&ndash;140 s of inactivity.
+    </div>
+    <div class="state-arrow">↓ <span class="arrow-label">10 s of inactivity, no blockers</span></div>
+    <div class="state-box free">
+      <strong>Hibernated</strong>
+      Removed from memory. In-memory state lost. WebSocket connections (Hibernation API) stay alive.
+      Free. Constructor re-runs on next request.
+    </div>
+    <div class="state-arrow">↓ <span class="arrow-label">request arrives</span></div>
+    <div class="state-box active">
+      <strong>Active, in-memory</strong>
+      Constructor runs again. Reload state from storage.
+    </div>
+  </div>
+
+  <p>
+    The key word is <strong>hibernateable</strong>. A DO can only hibernate if there are no
+    pending timers, no in-progress awaited fetches, no active outbound connections, and &mdash;
+    crucially &mdash; no WebSockets opened with the standard WebSocket API. If you use the
+    <a href="https://developers.cloudflare.com/durable-objects/best-practices/websockets/#durable-objects-hibernation-websocket-api" target="_blank">Hibernation WebSocket API</a>
+    instead, the runtime can hibernate the instance while keeping client connections alive and
+    wake it up only when a message arrives.
+  </p>
+
+  <div class="callout">
+    <p>
+      <strong>The implication for your code:</strong> in-memory state does not survive
+      hibernation. Anything you need across requests must be in storage. Anything you keep in
+      <code>this.someVar</code> is a cache, not a source of truth.
+    </p>
+  </div>
+
+  <h2>Putting it together</h2>
+
+  <p>
+    Here is how the five properties interact in a single request:
+  </p>
+
+  <ol style="margin: 0 0 1rem 1.5rem; padding:0;">
+    <li>A Worker constructs a stub using the DO&rsquo;s name or ID.</li>
+    <li>The runtime routes the request to the unique instance for that ID
+        (global uniqueness).</li>
+    <li>The instance&rsquo;s handler starts. No other handler can run at the same time
+        (single-threaded).</li>
+    <li>If the handler reads or writes storage, the input gate holds back new events and the
+        output gate holds back responses until the write is confirmed (gates).</li>
+    <li>Storage reads and writes hit the co-located SQLite database, usually from in-memory cache
+        (co-located storage).</li>
+    <li>If the DO goes idle with no blockers, it hibernates after 10 seconds, freeing memory
+        without dropping WebSocket clients (hibernation).</li>
+  </ol>
+
+  <p>
+    That is the full runtime contract. No other mechanism is involved in the coordination story.
+  </p>
+
+  <hr style="margin: 2.5rem 0; border:none; border-top: 1px solid #ddd;">
+
+  <h2>Quiz</h2>
+  <p style="font-family:sans-serif; font-size:0.85rem; color:#555;">
+    Select the best answer. Commit to one before revealing.
+  </p>
+
+  <div class="quiz" data-quiz="q1" style="margin-bottom:2rem;">
+    <p class="quiz-question" style="font-family:sans-serif; font-size:0.95rem;">
+      A DO handler <code>await</code>s a <code>storage.get()</code>. A second request arrives
+      at that exact moment. What does the runtime do with it?
+    </p>
+    <ul class="quiz-options">
+      <li data-correct="true">Holds it behind the input gate until the storage op finishes</li>
+      <li>Runs it concurrently in a separate async context in the same thread</li>
+      <li>Queues it in a database-backed request buffer for durability</li>
+      <li>Rejects it with a 503 and tells the client to retry later</li>
+    </ul>
+    <p class="quiz-feedback"
+       data-correct="Correct. The input gate holds incoming events while any storage operation is in flight. The second request waits, then runs after the first handler&rsquo;s storage operation completes."
+       data-incorrect="Not quite. The runtime doesn&rsquo;t reject the request or run it concurrently — it holds it. That&rsquo;s the input gate."
+       hidden></p>
+  </div>
+
+  <div class="quiz" data-quiz="q2" style="margin-bottom:2rem;">
+    <p class="quiz-question" style="font-family:sans-serif; font-size:0.95rem;">
+      A DO calls <code>storage.put("key", value)</code> without <code>await</code>ing it, then
+      immediately returns a 200 response. What actually happens?
+    </p>
+    <ul class="quiz-options">
+      <li data-correct="true">The output gate holds the 200 until the write is confirmed on disk</li>
+      <li>The 200 is sent immediately and the write completes in the background, possibly lost</li>
+      <li>The runtime throws because unawaited storage writes are not allowed in DOs</li>
+      <li>The write is batched and confirmed only on the next request to the same DO</li>
+    </ul>
+    <p class="quiz-feedback"
+       data-correct="Correct. The output gate holds any outgoing response until the write lands. The client receives the 200 only after the data is durable. If the write fails, the response is dropped and the DO restarts."
+       data-incorrect="Not quite. The DO doesn&rsquo;t throw, and the response isn&rsquo;t sent immediately. The output gate delays it until the write confirms."
+       hidden></p>
+  </div>
+
+  <div class="quiz" data-quiz="q3" style="margin-bottom:2rem;">
+    <p class="quiz-question" style="font-family:sans-serif; font-size:0.95rem;">
+      A DO has 50 WebSocket clients connected using the standard WebSocket API. It goes idle.
+      What happens after 10 seconds?
+    </p>
+    <ul class="quiz-options">
+      <li data-correct="true">It stays in memory, non-hibernateable, billed, until evicted at 70&ndash;140 s</li>
+      <li>It hibernates immediately, disconnecting all 50 WebSocket clients gracefully</li>
+      <li>It hibernates and keeps connections alive via the Hibernation WebSocket API</li>
+      <li>It remains active and billed indefinitely until all clients disconnect</li>
+    </ul>
+    <p class="quiz-feedback"
+       data-correct="Correct. Standard WebSocket API prevents hibernation. The DO stays idle in-memory, billed, and is evicted (not hibernated) after 70&ndash;140 s. To keep connections alive through hibernation you must use the Hibernation WebSocket API instead."
+       data-incorrect="Not quite. Standard WebSocket API makes the DO non-hibernateable. It stays in memory, gets billed, and is eventually evicted — not cleanly hibernated. The Hibernation API is what enables the hibernation-with-connections-alive behavior."
+       hidden></p>
+  </div>
+
+  <div class="quiz" data-quiz="q4" style="margin-bottom:2rem;">
+    <p class="quiz-question" style="font-family:sans-serif; font-size:0.95rem;">
+      A DO stores <code>this.count = 42</code> in a handler. The DO hibernates. A new request
+      arrives. What is <code>this.count</code>?
+    </p>
+    <ul class="quiz-options">
+      <li data-correct="true">Undefined — in-memory state is lost on hibernation</li>
+      <li>42 — the runtime serializes instance variables before hibernating</li>
+      <li>42 — the runtime keeps a warm standby with the prior in-memory state</li>
+      <li>0 — the runtime resets numeric instance variables to their default</li>
+    </ul>
+    <p class="quiz-feedback"
+       data-correct="Correct. Hibernation evicts the instance from memory. The constructor runs again on the next request. Any instance variable not reloaded from storage will be undefined or whatever the constructor initializes it to."
+       data-incorrect="Not quite. The runtime does not serialize or preserve instance variables across hibernation. In-memory state is gone. Reload from storage in the constructor."
+       hidden></p>
+  </div>
+
+  <div class="primary-source">
+    <span class="label">Primary sources for this lesson</span>
+    <a href="https://blog.cloudflare.com/durable-objects-easy-fast-correct-choose-three/" target="_blank">
+      Durable Objects: Easy, Fast, Correct &mdash; Choose three
+    </a> &mdash; Kenton Varda (2021). Input gates, output gates, and automatic caching explained in full.
+    <br><br>
+    <a href="https://developers.cloudflare.com/durable-objects/concepts/durable-object-lifecycle/" target="_blank">
+      Lifecycle of a Durable Object
+    </a> &mdash; Cloudflare Docs. State transitions, hibernation conditions, and eviction timings.
+    <br><br>
+    <a href="https://developers.cloudflare.com/durable-objects/reference/in-memory-state/" target="_blank">
+      In-memory state in a Durable Object
+    </a> &mdash; Cloudflare Docs. Instance variables vs. storage, and the built-in cache.
+  </div>
+
+  <div class="lesson-nav">
+    <a href="0001-the-coordination-problem.html">&larr; Lesson 1: The coordination problem</a>
+    <a href="0003-build-a-counter-do.html">Lesson 3: Build a counter DO &rarr;</a>
+  </div>
+
+  <div class="ask-teacher">
+    <strong>Questions?</strong> Ask your teacher before moving on.
+    Examples: &ldquo;What exactly triggers the output gate to open?&rdquo;
+    &ldquo;Can I disable input gates for performance?&rdquo;
+    &ldquo;What happens to in-flight requests when a DO is evicted?&rdquo;
+  </div>
+
+  <script src="../assets/quiz.js"></script>
+</body>
+</html>
