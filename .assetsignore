@@ -1,0 +1,9 @@
+lessons/*.mp3
+lessons/*.txt
+lessons/*.md
+learning-records/
+*.md
+.git/
+node_modules/
+wrangler.jsonc
+.assetsignore
