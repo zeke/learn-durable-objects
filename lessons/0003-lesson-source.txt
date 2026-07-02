@@ -1,0 +1,86 @@
+Lesson 3: Build a counter DO
+
+This lesson walks through a complete, working Durable Objects counter, annotated line by line.
+
+THE DO CLASS:
+
+import { DurableObject } from "cloudflare:workers";
+
+The DurableObject base class is provided by the Workers runtime. Extending it gives your class access to this.ctx (state and storage) and this.env (bindings). You must call super(ctx, env) in your constructor.
+
+export class Counter extends DurableObject {
+
+This class must be exported. The name must match class_name in wrangler.jsonc.
+
+  async getCounterValue() {
+    let value = (await this.ctx.storage.get("value")) || 0;
+    return value;
+  }
+
+this.ctx.storage is the DO's private KV-style storage API. get() returns a Promise that resolves to whatever was stored, or undefined. The || 0 handles the first-ever read. This read hits the in-memory cache if the value was recently accessed; otherwise it reads from co-located SQLite on the same machine.
+
+  async increment(amount = 1) {
+    let value = (await this.ctx.storage.get("value")) || 0;
+    value += amount;
+    await this.ctx.storage.put("value", value);
+    return value;
+  }
+
+Read-modify-write — safe here because of input gates. In normal async JS this would be a race condition: two concurrent callers could both read the same value before either writes. Inside a DO it is safe. The input gate blocks any other handler from running while this handler is awaiting the get() or the put(). By the time the second request's handler starts, the first has already finished its write. No lock, no transaction, no retry.
+
+  async decrement(amount = 1) {
+    let value = (await this.ctx.storage.get("value")) || 0;
+    value -= amount;
+    await this.ctx.storage.put("value", value);
+    return value;
+  }
+
+increment(), decrement(), and getCounterValue() are plain async methods. The Workers RPC system automatically exposes any public method as callable from a stub. No special decorator needed.
+
+THE WORKER (ENTRY POINT):
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const name = url.searchParams.get("name");
+
+This is a normal stateless Worker. All state lives in the DO, not here.
+
+    const id = env.COUNTERS.idFromName(name);
+    const stub = env.COUNTERS.get(id);
+
+Two steps to get a stub. idFromName(name) converts the string to a globally unique DurableObjectId — deterministically. Same name always produces same ID, always routes to same instance. .get(id) returns a stub: a client object. The instance is not created or woken up yet.
+
+    switch (url.pathname) {
+      case "/increment": count = await stub.increment(); break;
+      case "/decrement": count = await stub.decrement(); break;
+      case "/":          count = await stub.getCounterValue(); break;
+    }
+
+stub.increment() looks like a local method call but it is an RPC: the runtime serializes the call, routes it to the DO instance (waking it if hibernated), runs increment() in the DO's single-threaded context, serializes the return value, and resolves the Promise.
+
+WRANGLER CONFIG:
+
+{
+  "durable_objects": {
+    "bindings": [{ "name": "COUNTERS", "class_name": "Counter" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Counter"] }]
+}
+
+Two required config blocks. bindings tells the runtime: when this Worker references env.COUNTERS, route it to instances of the Counter class. migrations with new_sqlite_classes tells the runtime to provision a SQLite database for each instance.
+
+WHAT HAPPENS ON THE FIRST REQUEST:
+1. Worker receives GET /?name=visits
+2. idFromName("visits") — deterministic ID computed
+3. .get(id) — stub created, no network call yet
+4. await stub.getCounterValue() — RPC sent to the DO
+5. Runtime cold-starts the DO: constructor runs
+6. getCounterValue() runs: storage.get("value") returns undefined, returns 0
+7. Worker returns "Counter 'visits': 0"
+8. DO stays alive in memory, waiting for more requests
+
+CONCURRENT INCREMENT CHALLENGE:
+Two requests arrive simultaneously: GET /increment?name=hits and GET /increment?name=hits. Counter starts at 5.
+
+Answer: One request wins the input gate. Request A reads 5, writes 6, returns 6. Gate opens. Request B reads 6 (not 5 — A's write is already confirmed), writes 7, returns 7. Final value: 7. No duplicate returns. No lost increment.

@@ -124,6 +124,20 @@
     That address is a Durable Object.
   </p>
 
+  <div class="callout">
+    <p>
+      <strong>This idea has a 50-year history.</strong> The pattern a DO implements is called the
+      <strong>Actor model</strong>, invented by Carl Hewitt at MIT in 1973. An actor is a
+      globally-addressable, single-threaded entity that processes messages one at a time and holds
+      its own private state. Erlang (1986), Microsoft Orleans (2014), and Akka have been running
+      this model in production for decades &mdash; WhatsApp, Discord, Xbox Live, and Halo all use
+      variants of it. Cloudflare&rsquo;s contribution is not the idea; it&rsquo;s the
+      implementation: actors provisioned globally on edge hardware, with co-located SQLite storage
+      and a routing layer baked into the runtime. When DOs feel like magic, it helps to know the
+      magic has a name, a bibliography, and competitors.
+    </p>
+  </div>
+
   <h2>The key insight</h2>
 
   <p>

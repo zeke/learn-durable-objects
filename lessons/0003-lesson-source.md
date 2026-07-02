@@ -311,18 +311,6 @@
     <code>increment()</code> is never interrupted by a concurrent call.
   </p>
 
-  <div class="callout">
-    <p>
-      <strong>Portability check.</strong> If you needed to run this counter on a different
-      platform, the code above wouldn&rsquo;t transfer directly &mdash; but the
-      <em>pattern</em> would. Microsoft Orleans would express this as a grain with a string key
-      and persistent state. Rivet Actors (Node.js, self-hostable) would express it as
-      <code>this.state.value</code> inside an actor class. The read-modify-write-protected-by-
-      single-threaded-execution is identical across all three. What changes is the API surface
-      and the infrastructure underneath, not the concept.
-    </p>
-  </div>
-
   <hr style="margin: 2.5rem 0; border:none; border-top: 1px solid #ddd;">
 
   <h2>Challenge</h2>

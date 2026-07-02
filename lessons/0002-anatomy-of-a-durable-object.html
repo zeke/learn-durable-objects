@@ -122,7 +122,13 @@
 
   <p>
     A Durable Object has five runtime properties that work together. None of them are magic once
-    you can name them.
+    you can name them. And none of them are unique to Cloudflare &mdash; the same properties
+    appear in Microsoft Orleans (&ldquo;grains&rdquo;, used in Azure, Halo, Xbox), Erlang
+    processes, and Rivet Actors (a newer platform that runs on Node.js and is self-hostable).
+    Cloudflare&rsquo;s implementation is distinctive because of the global edge routing and
+    co-located SQLite; the underlying model is a 50-year-old distributed systems pattern called
+    the <strong>Actor model</strong>. Understanding these five properties means you understand
+    the pattern, not just Cloudflare&rsquo;s version of it.
   </p>
 
   <table class="anatomy">
