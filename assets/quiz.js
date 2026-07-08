@@ -32,19 +32,19 @@
       option.style.padding = '0.5rem 0.75rem';
       option.style.marginBottom = '0.4rem';
       option.style.borderRadius = '3px';
-      option.style.border = '1px solid #ddd';
+      option.style.border = '1px solid var(--border)';
       option.style.listStyle = 'none';
       option.style.fontFamily = 'sans-serif';
       option.style.fontSize = '0.9rem';
       option.style.transition = 'background 0.15s';
-      option.style.background = '#fff';
+      option.style.background = 'var(--surface)';
       option.style.display = 'block';
 
       option.addEventListener('mouseenter', function () {
-        if (!answered) option.style.background = '#f5f4ef';
+        if (!answered) option.style.background = 'var(--code-bg)';
       });
       option.addEventListener('mouseleave', function () {
-        if (!answered) option.style.background = '#fff';
+        if (!answered) option.style.background = 'var(--surface)';
       });
 
       option.addEventListener('click', function () {
@@ -57,13 +57,13 @@
         options.forEach(function (o) {
           o.style.cursor = 'default';
           if (o.dataset.correct === 'true') {
-            o.style.background = '#edf7ed';
-            o.style.borderColor = '#2d6a2d';
-            o.style.color = '#2d6a2d';
+            o.style.background = 'var(--success-bg)';
+            o.style.borderColor = 'var(--success)';
+            o.style.color = 'var(--success)';
           } else if (o === option && !isCorrect) {
-            o.style.background = '#fdf0f0';
-            o.style.borderColor = '#8b0000';
-            o.style.color = '#8b0000';
+            o.style.background = 'var(--error-bg)';
+            o.style.borderColor = 'var(--error)';
+            o.style.color = 'var(--error)';
           }
         });
 
@@ -77,12 +77,12 @@
           feedback.style.borderRadius = '3px';
 
           if (isCorrect) {
-            feedback.style.background = '#edf7ed';
-            feedback.style.color = '#2d6a2d';
+            feedback.style.background = 'var(--success-bg)';
+            feedback.style.color = 'var(--success)';
             feedback.textContent = feedback.dataset.correct || 'Correct.';
           } else {
-            feedback.style.background = '#fdf0f0';
-            feedback.style.color = '#8b0000';
+            feedback.style.background = 'var(--error-bg)';
+            feedback.style.color = 'var(--error)';
             feedback.textContent = feedback.dataset.incorrect || 'Not quite. The correct answer is highlighted above.';
           }
         }

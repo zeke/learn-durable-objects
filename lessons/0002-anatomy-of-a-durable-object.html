@@ -32,12 +32,12 @@
 
     .state-box.active {
       background: var(--success-bg);
-      border-color: #2d6a2d;
+      border-color: var(--success);
     }
 
     .state-box.billed {
-      background: #fff8ed;
-      border-color: #c96a10;
+      background: var(--accent-bg);
+      border-color: var(--accent-dark);
     }
 
     .state-box.free {
@@ -105,7 +105,7 @@
   </p>
 
   <h1>Anatomy of a Durable Object</h1>
-  <p style="font-family:sans-serif; font-size:0.88rem; color:#555; margin-top:0.25rem;">
+  <p style="font-family:sans-serif; font-size:0.88rem; color:var(--muted); margin-top:0.25rem;">
     15 minutes &nbsp;&middot;&nbsp; No hands-on code &nbsp;&middot;&nbsp; Runtime mechanics
   </p>
 
@@ -348,10 +348,10 @@ await Promise.all([p1, p2]);</code></pre>
     That is the full runtime contract. No other mechanism is involved in the coordination story.
   </p>
 
-  <hr style="margin: 2.5rem 0; border:none; border-top: 1px solid #ddd;">
+  <hr style="margin: 2.5rem 0; border:none; border-top: 1px solid var(--border);">
 
   <h2>Quiz</h2>
-  <p style="font-family:sans-serif; font-size:0.85rem; color:#555;">
+  <p style="font-family:sans-serif; font-size:0.85rem; color:var(--muted);">
     Select the best answer. Commit to one before revealing.
   </p>
 
